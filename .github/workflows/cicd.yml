@@ -3,7 +3,7 @@ name: CI/CD Docker
 on:
   push:
     branches:
-      - main   # Change si tu utilises une autre branche
+      - main   # Détecte le push sur la branche main
 
 jobs:
   build-and-deploy:
@@ -14,35 +14,41 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Login Docker Hub
+      # 2️⃣ Login à Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 3️⃣ Build Docker image
+      # 3️⃣ Build et tag de l'image Docker
       - name: Build Docker image
         run: |
-          docker build -t your-dockerhub-username/your-image:latest .
+          docker build -t nodejs_postgres:latest .
+          docker tag nodejs_postgres:latest ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
 
-      # 4️⃣ Push Docker image
+      # 4️⃣ Push l'image sur Docker Hub
       - name: Push Docker image
         run: |
-          docker push your-dockerhub-username/your-image:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
 
-      # 5️⃣ Setup SSH
+      # 5️⃣ Setup SSH pour déploiement
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.8.1
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 6️⃣ Deploy on server
+      # 6️⃣ Déployer le conteneur sur le serveur
       - name: Deploy container
         run: |
-          ssh -o StrictHostKeyChecking=no user@your-server-ip "
-            docker pull your-dockerhub-username/your-image:latest &&
-            docker stop your-container || true &&
-            docker rm your-container || true &&
-            docker run -d --name your-container -p 80:80 your-dockerhub-username/your-image:latest
+          ssh -o StrictHostKeyChecking=no ethan@51.44.223.183 "
+            echo 'Pull de la dernière image Docker' &&
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest &&
+            
+            echo 'Arrêt et suppression de l’ancien conteneur' &&
+            docker stop nodejs_postgres || true &&
+            docker rm nodejs_postgres || true &&
+            
+            echo 'Lancement du nouveau conteneur' &&
+            docker run -d --name nodejs_postgres -p 3001:3000 ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
           "
