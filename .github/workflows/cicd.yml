@@ -34,7 +34,7 @@ jobs:
 
       # 5️⃣ Setup SSH pour déploiement
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.7.1
+        uses: webfactory/ssh-agent@master
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
@@ -44,11 +44,11 @@ jobs:
           ssh -o StrictHostKeyChecking=no ethan@51.44.223.183 "
             echo 'Pull de la dernière image Docker' &&
             docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest &&
-            
+
             echo 'Arrêt et suppression de l’ancien conteneur' &&
             docker stop nodejs_postgres || true &&
             docker rm nodejs_postgres || true &&
-            
+
             echo 'Lancement du nouveau conteneur' &&
             docker run -d --name nodejs_postgres -p 3001:3000 ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
           "
