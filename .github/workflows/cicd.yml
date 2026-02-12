@@ -24,7 +24,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejs-app:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejsNerocke-app:latest
 
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
@@ -35,13 +35,13 @@ jobs:
           script: |
             docker pull ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejs-app:latest
             
-            docker stop my-nodejs-app-container || true
-            docker rm my-nodejs-app-container || true
+            docker stop my-nodejs-appNerocke-container || true
+            docker rm my-nodejs-appNerocke-container || true
             
             docker run -d \
-              --name my-nodejs-app-container \
+              --name my-nodejs-appNerocke-container \
               -p 3001:3000 \
               -e DATABASE_URL=postgres://postgres:mysecretpassword@db:5432/mydb \
               -e NODE_ENV=production \
               --restart unless-stopped \
-              ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejs-app:latest
+              ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejsNerocke-app:latest
