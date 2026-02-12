@@ -1,54 +1,67 @@
-name: CI/CD Docker
+name: CI/CD Docker Compose
 
 on:
   push:
     branches:
-      - main   # Détecte le push sur la branche main
+      - main
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout du repo
+      # 1️⃣ Checkout du code
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 2️⃣ Login à Docker Hub
       - name: Login to Docker Hub
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 3️⃣ Build et tag de l'image Docker
-      - name: Build Docker image
-        run: |
-          docker build -t nodejs_postgres:latest .
-          docker tag nodejs_postgres:latest ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
-
-      # 4️⃣ Push l'image sur Docker Hub
-      - name: Push Docker image
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
-
-      # 5️⃣ Setup SSH pour déploiement
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@master
+      # 3️⃣ Build et push l'image Docker
+      - name: Build and Push Docker image
+        uses: docker/build-push-action@v5
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
+            ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:${{ github.sha }}
 
-      # 6️⃣ Déployer le conteneur sur le serveur
-      - name: Deploy container
-        run: |
-          ssh -o StrictHostKeyChecking=no ethan@13.38.112.104 "
-            echo 'Pull de la dernière image Docker' &&
-            docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest &&
+      # 4️⃣ Copier docker-compose et init SQL sur le serveur
+      - name: Copy files to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 13.38.112.104
+          username: ethan
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.prod.yml,init-db.sql"
+          target: "~/app"
 
-            echo 'Arrêt et suppression de l’ancien conteneur' &&
-            docker stop nodejs_postgres || true &&
-            docker rm nodejs_postgres || true &&
+      # 5️⃣ Déployer sur le serveur via SSH
+      - name: Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 13.38.112.104
+          username: ethan
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/app
 
-            echo 'Lancement du nouveau conteneur' &&
-            docker run -d --name nodejs_postgres -p 3001:3000 ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
-          "
+            # Définir Docker Hub username
+            export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+
+            # Pull de la dernière image
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
+
+            # Stop et remove ancien conteneur via Docker Compose
+            docker compose -f docker-compose.prod.yml down
+
+            # Lancer les services avec rebuild
+            docker compose -f docker-compose.prod.yml up -d --build
+
+            # Nettoyage des images inutilisées
+            docker image prune -f
