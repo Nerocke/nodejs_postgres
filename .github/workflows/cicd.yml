@@ -25,8 +25,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
-            ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:${{ github.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/nerockenodejs:latest
+            ${{ secrets.DOCKER_USERNAME }}/nerockenodejs:${{ github.sha }}
 
       - name: Copy files to Server
         uses: appleboy/scp-action@v0.1.7
