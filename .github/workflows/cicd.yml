@@ -1,9 +1,9 @@
-name: CI/CD Docker Compose
+name: CI/CD Docker
 
 on:
   push:
     branches:
-      - main  # Détecte les push sur la branche main
+      - main   # Détecte le push sur la branche main
 
 jobs:
   build-and-deploy:
@@ -34,57 +34,21 @@ jobs:
 
       # 5️⃣ Setup SSH pour déploiement
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.8.0
+        uses: webfactory/ssh-agent@v0.7.1
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       # 6️⃣ Déployer le conteneur sur le serveur
-      - name: Deploy container via Docker Compose
+      - name: Deploy container
         run: |
-          ssh -o StrictHostKeyChecking=no ethan@13.38.112.104 "
-            cd ~/nodejs_postgres || mkdir -p ~/nodejs_postgres && cd ~/nodejs_postgres
-
-            # Pull la dernière image
-            docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
-
-            # Stop et remove ancien conteneur pour libérer le port
-            docker-compose down || true
-
-            # Écriture du docker-compose.yml minimal
-            cat > docker-compose.yml <<EOF
-            version: '3'
-
-            services:
-              db:
-                image: postgres:13
-                container_name: postgres_db_node
-                environment:
-                  POSTGRES_USER: postgres
-                  POSTGRES_PASSWORD: mysecretpassword
-                  POSTGRES_DB: mydb
-                ports:
-                  - "5432:5432"
-                volumes:
-                  - db_data:/var/lib/postgresql/data
-
-              node:
-                image: ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
-                container_name: nodejs_app
-                depends_on:
-                  - db
-                ports:
-                  - "3001:3000"
-                environment:
-                  DATABASE_URL: postgres://postgres:mysecretpassword@db:5432/mydb
-                  NODE_ENV: production
-                  CHOKIDAR_USEPOLLING: 'true'
-                restart: unless-stopped
-                command: ["./wait-for-it.sh", "db:5432", "--", "npm", "run", "start"]
-
-            volumes:
-              db_data:
-            EOF
-
-            # Lancer les services en rebuildant si nécessaire
-            docker-compose up -d --build
+          ssh -o StrictHostKeyChecking=no ethan@51.44.223.183 "
+            echo 'Pull de la dernière image Docker' &&
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest &&
+            
+            echo 'Arrêt et suppression de l’ancien conteneur' &&
+            docker stop nodejs_postgres || true &&
+            docker rm nodejs_postgres || true &&
+            
+            echo 'Lancement du nouveau conteneur' &&
+            docker run -d --name nodejs_postgres -p 3001:3000 ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
           "
