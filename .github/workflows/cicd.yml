@@ -10,38 +10,59 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout du code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 2️⃣ Login à Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 3️⃣ Build et push l'image Docker
       - name: Build and Push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejsNerocke-app:latest
+          no-cache: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejsNerocke-app:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejsNerocke-app:${{ github.sha }}
 
+      # 4️⃣ Copier docker-compose.yml et init SQL sur le serveur
+      - name: Copy files to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 13.38.112.104
+          username: ethan
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml,init-db.sql"
+          target: "/home/ethan/app"
+
+      # 5️⃣ Déployer sur le serveur via SSH
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         with:
-            host: ${{ secrets.SERVER_HOST }}
-            username: ${{ secrets.SERVER_USER }}
-            key: ${{ secrets.SSH_PRIVATE_KEY }}
+          host: 13.38.112.104
+          username: ethan
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejs-app:latest
-            
-            docker stop my-nodejs-appNerocke-container || true
-            docker rm my-nodejs-appNerocke-container || true
-            
-            docker run -d \
-              --name my-nodejs-appNerocke-container \
-              -p 3001:3000 \
-              -e DATABASE_URL=postgres://postgres:mysecretpassword@db:5432/mydb \
-              -e NODE_ENV=production \
-              --restart unless-stopped \
-              ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejsNerocke-app:latest
+            cd /home/ethan/app
+
+            # Vérifier que les fichiers sont bien copiés
+            ls -la
+
+            # Pull de la dernière image
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/my-nodejsNerocke-app:latest
+
+            # Stop et remove ancien conteneur si présent
+            docker compose -f docker-compose.yml down
+
+            # Lancer les services avec rebuild forcé
+            docker compose -f docker-compose.yml up -d --build
+
+            # Nettoyer les images inutilisées
+            docker image prune -f
