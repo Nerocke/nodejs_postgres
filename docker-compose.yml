@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
 
   node:
-    image: ethan/nodejs_postgres:latest  # image Docker Hub buildée
+    image: nerocke/nodejs_postgres:latest  # image Docker Hub buildée
     container_name: nerockenodejs          # nom du conteneur mis à jour
     depends_on:
       - db
