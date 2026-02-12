@@ -41,7 +41,7 @@ jobs:
       # 6️⃣ Déployer le conteneur sur le serveur
       - name: Deploy container
         run: |
-          ssh -o StrictHostKeyChecking=no ethan@51.44.223.183 "
+          ssh -o StrictHostKeyChecking=no ethan@13.38.112.104 "
             echo 'Pull de la dernière image Docker' &&
             docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest &&
 
