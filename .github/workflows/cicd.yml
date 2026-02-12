@@ -1,4 +1,4 @@
-name: CI/CD Docker Compose
+name: CI/CD Pipeline
 
 on:
   push:
@@ -11,7 +11,7 @@ jobs:
 
     steps:
       # 1️⃣ Checkout du code
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       # 2️⃣ Login à Docker Hub
@@ -27,21 +27,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
-            ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:${{ github.sha }}
+          tags: ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
 
-      # 4️⃣ Copier docker-compose et init SQL sur le serveur
-      - name: Copy files to Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: 13.38.112.104
-          username: ethan
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.prod.yml,init-db.sql"
-          target: "~/app"
-
-      # 5️⃣ Déployer sur le serveur via SSH
+      # 4️⃣ Déployer sur le serveur
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -49,19 +37,18 @@ jobs:
           username: ethan
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ~/app
-
-            # Définir Docker Hub username
-            export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-
             # Pull de la dernière image
             docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
-
-            # Stop et remove ancien conteneur via Docker Compose
-            docker compose -f docker-compose.prod.yml down
-
-            # Lancer les services avec rebuild
-            docker compose -f docker-compose.prod.yml up -d --build
-
-            # Nettoyage des images inutilisées
-            docker image prune -f
+            
+            # Stop et suppression de l'ancien conteneur
+            docker stop nodejs_app || true
+            docker rm nodejs_app || true
+            
+            # Lancement du nouveau conteneur
+            docker run -d \
+              --name nodejs_app \
+              -p 3001:3000 \
+              -e DATABASE_URL=postgres://postgres:mysecretpassword@db:5432/mydb \
+              -e NODE_ENV=production \
+              --restart unless-stopped \
+              ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
