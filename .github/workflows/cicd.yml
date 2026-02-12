@@ -41,7 +41,7 @@ jobs:
       # 6️⃣ Déployer le conteneur sur le serveur avec Docker Compose
       - name: Deploy container via Docker Compose
         run: |
-          ssh -o StrictHostKeyChecking=no ethan@${{ secrets.SERVER_HOST }} "
+          ssh -o StrictHostKeyChecking=no ethan@13.38.112.104 "
             cd ~/nodejs_postgres || mkdir -p ~/nodejs_postgres && cd ~/nodejs_postgres
 
             # Pull de la dernière image
