@@ -29,8 +29,8 @@ jobs:
           push: true
           no-cache: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/my-nodejsNerocke-app:latest
-            ${{ secrets.DOCKER_USERNAME }}/my-nodejsNerocke-app:${{ github.sha }}
+            ${{ secrets.DOCKER_USERNAME }}/my-nodejsnerocke-app:latest
+            ${{ secrets.DOCKER_USERNAME }}/my-nodejsnerocke-app:${{ github.sha }}
 
       # 4️⃣ Copier docker-compose.yml et init SQL sur le serveur
       - name: Copy files to Server
@@ -56,7 +56,7 @@ jobs:
             ls -la
 
             # Pull de la dernière image
-            docker pull ${{ secrets.DOCKER_USERNAME }}/my-nodejsNerocke-app:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/my-nodejsnerocke-app:latest
 
             # Stop et remove ancien conteneur si présent
             docker compose -f docker-compose.yml down
