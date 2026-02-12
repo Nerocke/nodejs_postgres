@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: mydb
     ports:
-      - "5432:5432"
+      - "5432:5432"                # ton port pour PostgreSQL
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
@@ -17,11 +17,11 @@ services:
 
   node:
     build: .
-    container_name: nodejs_appNerocke
+    container_name: nodejs_appNerocke    # ton nom de conteneur Node
     depends_on:
       - db
     ports:
-      - "3001:3000"
+      - "3001:3000"               # ton port pour Node
     volumes:
       - .:/app
       - /app/node_modules
@@ -31,3 +31,6 @@ services:
       - CHOKIDAR_USEPOLLING=true
     restart: unless-stopped
     command: ["./wait-for-postgres.sh", "db:5432", "--", "npm", "run", "dev"]
+
+volumes:
+  db_data:
