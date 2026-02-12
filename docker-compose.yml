@@ -9,24 +9,24 @@ services:
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: mydb
     ports:
-      - "3173:5432"         # accessible depuis l'extérieur si nécessaire
+      - "3173:5432"  # port externe pour PostgreSQL
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     restart: unless-stopped
 
   node:
-    image: ethan/nodejs_postgres:latest   # utilise l'image Docker Hub buildée
-    container_name: nodejs_app_nerocke
+    image: ethan/nodejs_postgres:latest  # image Docker Hub buildée
+    container_name: nerockenodejs          # nom du conteneur mis à jour
     depends_on:
       - db
     ports:
-      - "3174:3000"
+      - "3001:3000"  # port externe 3001 vers 3000 interne
     environment:
       - DATABASE_URL=postgres://postgres:mysecretpassword@db:5432/mydb
       - NODE_ENV=production
     restart: unless-stopped
-    command: ["npm", "run", "start"]  # utiliser start en prod plutôt que dev
+    command: ["npm", "run", "start"]  # utiliser start en production
 
 volumes:
   db_data:

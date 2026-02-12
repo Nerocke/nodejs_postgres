@@ -37,7 +37,6 @@ jobs:
           source: "docker-compose.yml,init-db.sql"
           target: "~/app"
 
-          # deployment
       - name: Deploy to Server
         uses: appleboy/ssh-action@v1.0.3
         with:
