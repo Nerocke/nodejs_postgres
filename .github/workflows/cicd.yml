@@ -1,55 +1,53 @@
-name: CI/CD Docker Compose
+name: CI/CD Docker
 
 on:
   push:
     branches:
-      - main  # Détecte les push sur la branche main
+      - main   # Détecte les push sur la branche main
 
 jobs:
-  build-and-push:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       # 1️⃣ Checkout du repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Login Docker Hub
+      # 2️⃣ Login à Docker Hub
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 3️⃣ Build et push Docker image
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
+      # 3️⃣ Build et tag de l'image Docker
+      - name: Build Docker image
+        run: |
+          docker build -t nodejs_postgres:latest .
+          docker tag nodejs_postgres:latest ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      # 4️⃣ SSH vers le serveur et déploiement
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v0.1.6
+      # 4️⃣ Push l'image sur Docker Hub
+      - name: Push Docker image
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
+
+      # 5️⃣ Setup SSH pour déploiement
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            # Aller dans le dossier du projet sur le serveur
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # 6️⃣ Déployer le conteneur sur le serveur avec Docker Compose
+      - name: Deploy container via Docker Compose
+        run: |
+          ssh -o StrictHostKeyChecking=no ethan@${{ secrets.SERVER_HOST }} "
             cd ~/nodejs_postgres || mkdir -p ~/nodejs_postgres && cd ~/nodejs_postgres
 
-            # Pull de la dernière image Docker
+            # Pull de la dernière image
             docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
 
-            # Arrêt et suppression de l’ancien conteneur
-            docker-compose down || true
-
-            # Écriture d’un docker-compose.yml minimal pour Node + Postgres
+            # Écrire un docker-compose.yml minimal
             cat > docker-compose.yml <<EOF
             version: '3'
 
@@ -84,5 +82,9 @@ jobs:
               db_data:
             EOF
 
-            # Démarrage des services
+            # Stop et remove anciens conteneurs (sécurité)
+            docker-compose down || true
+
+            # Lancer les services
             docker-compose up -d
+          "
