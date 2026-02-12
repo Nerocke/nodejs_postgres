@@ -27,18 +27,19 @@ jobs:
         with:
           context: .
           push: true
+          no-cache: true
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
             ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:${{ github.sha }}
 
-      # 4️⃣ Copier docker-compose et init SQL sur le serveur
+      # 4️⃣ Copier docker-compose.yml et init SQL sur le serveur
       - name: Copy files to Server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: 13.38.112.104
           username: ethan
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.prod.yml,init-db.sql"
+          source: "docker-compose.yml,init-db.sql"
           target: "/home/ethan/app"
 
       # 5️⃣ Déployer sur le serveur via SSH
