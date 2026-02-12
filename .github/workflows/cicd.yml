@@ -1,9 +1,9 @@
-name: CI/CD Dockerr
+name: CI/CD Docker Compose
 
 on:
   push:
     branches:
-      - main   # Détecte les push sur la branche main
+      - main  # Détecte les push sur la branche main
 
 jobs:
   build-and-deploy:
@@ -38,16 +38,19 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      # 6️⃣ Déployer le conteneur sur le serveur avec Docker Compose
+      # 6️⃣ Déployer le conteneur sur le serveur
       - name: Deploy container via Docker Compose
         run: |
           ssh -o StrictHostKeyChecking=no ethan@13.38.112.104 "
             cd ~/nodejs_postgres || mkdir -p ~/nodejs_postgres && cd ~/nodejs_postgres
 
-            # Pull de la dernière image
+            # Pull la dernière image
             docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
 
-            # Écrire un docker-compose.yml minimal
+            # Stop et remove ancien conteneur pour libérer le port
+            docker-compose down || true
+
+            # Écriture du docker-compose.yml minimal
             cat > docker-compose.yml <<EOF
             version: '3'
 
@@ -82,9 +85,6 @@ jobs:
               db_data:
             EOF
 
-            # Stop et remove anciens conteneurs (sécurité)
-            docker-compose down || true
-
-            # Lancer les services
-            docker-compose up -d
+            # Lancer les services en rebuildant si nécessaire
+            docker-compose up -d --build
           "
