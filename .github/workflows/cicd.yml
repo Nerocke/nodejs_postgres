@@ -39,7 +39,7 @@ jobs:
           username: ethan
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "docker-compose.prod.yml,init-db.sql"
-          target: "~/app"
+          target: "/home/ethan/app"
 
       # 5️⃣ Déployer sur le serveur via SSH
       - name: Deploy to Server
@@ -49,9 +49,12 @@ jobs:
           username: ethan
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ~/app
+            cd /home/ethan/app
 
             export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+
+            # Vérifier que les fichiers sont là
+            ls -la
 
             # Pull de la dernière image
             docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
