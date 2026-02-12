@@ -60,10 +60,10 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
 
             # Stop et remove ancien conteneur si présent
-            docker compose -f docker-compose.prod.yml down
+            docker compose -f docker-compose.yml down
 
             # Lancer les services avec rebuild
-            docker compose -f docker-compose.prod.yml up -d --build
+            docker compose -f docker-compose.yml up -d --build
 
             # Nettoyer les images inutilisées
             docker image prune -f
