@@ -1,36 +1,32 @@
-version: '3.8'
+version: '3'
 
 services:
   db:
     image: postgres:13
-    container_name: postgres_db_node
+    container_name: postgres_db_node_nerocke
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: mysecretpassword
       POSTGRES_DB: mydb
     ports:
-      - "5432:5432"                # ton port pour PostgreSQL
+      - "3173:5432"         # accessible depuis l'extérieur si nécessaire
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     restart: unless-stopped
 
   node:
-    build: .
-    container_name: nodejs_appNerocke    # ton nom de conteneur Node
+    image: ethan/nodejs_postgres:latest   # utilise l'image Docker Hub buildée
+    container_name: nodejs_app_nerocke
     depends_on:
       - db
     ports:
-      - "3001:3000"               # ton port pour Node
-    volumes:
-      - .:/app
-      - /app/node_modules
+      - "3174:3000"
     environment:
       - DATABASE_URL=postgres://postgres:mysecretpassword@db:5432/mydb
-      - NODE_ENV=development
-      - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV=production
     restart: unless-stopped
-    command: ["./wait-for-postgres.sh", "db:5432", "--", "npm", "run", "dev"]
+    command: ["npm", "run", "start"]  # utiliser start en prod plutôt que dev
 
 volumes:
   db_data:
