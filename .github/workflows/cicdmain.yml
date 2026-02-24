@@ -1,12 +1,14 @@
-name: CI/CD Main Deploy
+name: CI Main Docker Release
 
 on:
   push:
     branches: ["main"]
 
 jobs:
-  build-and-deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: nodejs-postgres
 
     steps:
       - name: Checkout code
@@ -24,27 +26,5 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/devsecure-api:latest
-            ${{ secrets.DOCKER_USERNAME }}/devsecure-api:${{ github.sha }}
-
-      - name: Copy files to Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,init-db.sql"
-          target: "~/app"
-
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd ~/app
-            export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-            docker pull ${{ secrets.DOCKER_USERNAME }}/devsecure-api:latest
-            docker compose -f docker-compose.yml down
-            docker compose -f docker-compose.yml up -d
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+            ${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}

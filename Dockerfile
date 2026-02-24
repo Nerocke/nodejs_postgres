@@ -1,23 +1,23 @@
-# Utiliser une image Node.js
-FROM node:18
+FROM node:20-alpine AS deps
 
-# Définir le répertoire de travail
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+FROM node:20-alpine
+
+ENV NODE_ENV=production
 WORKDIR /app
 
-# Copier package.json et package-lock.json AVANT pour optimiser le cache
-COPY package*.json ./
-
-# Installer les dépendances
-RUN npm install
-
-# Copier TOUT le code APRÈS l'installation (évite de refaire npm install à chaque build)
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Installer nodemon globalement
-RUN npm install -g nodemon
+RUN addgroup -S nodeapp \
+	&& adduser -S nodeapp -G nodeapp \
+	&& chown -R nodeapp:nodeapp /app
 
-# Exposer le port de l'application
+USER nodeapp
+
 EXPOSE 3000
 
-# Commande de démarrage avec Nodemon
-CMD ["npm", "run", "dev"]
+CMD ["npm", "start"]

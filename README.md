@@ -1,118 +1,90 @@
-# 📌 Projet Node.js avec Docker et PostgreSQL
+# 🛡️ DevSecure API (Node.js)
 
-Ce projet est une application Node.js utilisant Express, PostgreSQL et Docker. Il est configuré pour un rechargement automatique grâce à **Nodemon**.
+Une API Node.js (Express + PostgreSQL) conçue avec une approche DevSecOps : sécurisée dès le développement, containerisée et livrée via une pipeline CI/CD automatisée.
 
----
+![CI](https://img.shields.io/badge/CI-GitHub%20Actions-blue)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)
+![Security](https://img.shields.io/badge/Security-Trivy%20%7C%20Snyk%20%7C%20Gitleaks-success)
 
-## 🚀 Objectifs
+## 🔧 Fonctionnalités
 
-- Démarrer une API Node.js avec Express et PostgreSQL
-- Utiliser **Docker** et **Docker Compose** pour faciliter le déploiement
-- Activer le **rechargement automatique** des modifications avec **Nodemon**
-- Gérer une base de données PostgreSQL avec Sequelize
+- ✅ API Node.js légère (Express)
+- 🐳 Dockerisation complète
+- ⚙️ Pipeline CI/CD GitHub Actions
+	- Build de l'image Docker
+	- Scan de sécurité:
+		- Trivy (vulnérabilités image)
+		- Snyk (dépendances & container)
+		- Gitleaks (détection de secrets)
+	- Push automatique vers Docker Hub (branche `dev`)
+- 🧾 Génération de rapports HTML de vulnérabilités
 
----
+## 🚀 Lancer en local
 
-## 📂 Pré-requis
-
-Assurez-vous d'avoir installé :
-
-- **[Docker](https://www.docker.com/get-started)** & **Docker Compose**
-- **Git**
-- **Node.js (optionnel, pour exécuter localement sans Docker)**
-
----
-
-## 🔽 1. Cloner le projet
-
-Clonez ce dépôt en local :
+### 1. Cloner le projet
 
 ```sh
 git clone https://github.com/Daniween/nodejs_postgres.git
 cd nodejs_postgres
 ```
 
----
-
-Modifiez les variables d’environnement si nécessaire (ex: informations de connexion à la base de données).
-
----
-
-## 🐳 2. Démarrer l'application avec Docker
-
-Lancez les conteneurs avec Docker Compose :
+### 2. Construire et lancer l'API en Docker
 
 ```sh
-docker-compose up --build
+docker build -t nodejs-postgres .
+docker run -p 3000:3000 -e DATABASE_URL=postgres://postgres:mysecretpassword@host.docker.internal:5432/mydb nodejs-postgres
 ```
 
-Cela va :
-
-- Construire et démarrer l’API Node.js
-- Démarrer une base de données PostgreSQL
-- Activer **Nodemon** pour détecter automatiquement les modifications
-
-**💡 Astuce :** Pour exécuter en arrière-plan, utilisez `docker-compose up -d`.
-
----
-
-## 🔄 3. Vérifier si l'API fonctionne
-
-Testez l'API avec `curl` ou Postman :
+### 3. Tester l'API
 
 ```sh
 curl http://localhost:3000/api/
 ```
 
-Vous devriez voir une réponse JSON.
+## 🔐 Sécurité & Scans
 
----
+| Outil | Objectif |
+|-------|----------|
+| Trivy | Scan des vulnérabilités dans l'image Docker |
+| Snyk | Analyse des dépendances Node.js et du container |
+| Gitleaks | Détection de secrets (clés, tokens...) dans le code |
 
-## 🛠 4. Développement en temps réel avec Nodemon
+## 📦 Déploiement Docker Hub
 
-L’application est configurée avec **Nodemon**, qui recharge automatiquement le serveur à chaque modification.
+Une fois la branche `dev` poussée :
 
-Si vous modifiez un fichier, vérifiez les logs Docker :
-
-```sh
-docker logs -f nodejs_app
-```
-
-Si les changements ne sont pas pris en compte :
-
-```sh
-docker-compose restart
-```
-
----
-
-## 📂 Structure du projet
-
-```
-nodejs-docker-app/
-│── app/
-│   ├── controllers/      # Logique métier
-│   ├── models/           # Modèles Sequelize
-│   ├── routes/           # Définition des routes API
-│── init-db.sql           # Script d'initialisation de la base PostgreSQL
-│── server.js             # Serveur Express principal
-│── Dockerfile            # Configuration Docker
-│── docker-compose.yml    # Configuration Docker Compose
-│── package.json          # Dépendances Node.js
-```
-
----
-
-## 🔌 Arrêter les services
-
-Pour arrêter l’application et supprimer les conteneurs :
+- L'image est construite automatiquement
+- Elle est scannée avec Trivy, Snyk et Gitleaks
+- Puis poussée en `latest` sur Docker Hub :
 
 ```sh
-docker-compose down
+docker pull <ton_user>/nodejs-postgres:latest
 ```
 
-Si vous souhaitez aussi supprimer les volumes (⚠️ supprime la base de données) :
+## 🔑 Secrets GitHub nécessaires
 
-```sh
-docker-compose down -v
+- `DOCKER_USERNAME`
+- `DOCKER_PASSWORD`
+- `SNYK_TOKEN` (optionnel, recommandé)
+
+## 📁 Structure du projet
+
 ```
+├── server.js
+├── Dockerfile
+├── docker-compose.yml
+├── package.json
+├── .github/
+│   └── workflows/
+│       ├── cicd.yml
+│       └── cicdmain.yml
+└── app/
+		├── controllers/
+		├── models/
+		└── routes/
+```
+
+## 🗺️ Architecture CI/CD
+
+- `dev` : build + scans sécurité + rapports + push Docker Hub
+- `main` : build & release Docker Hub (`latest` + SHA)

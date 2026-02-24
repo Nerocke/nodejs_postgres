@@ -1,75 +1,105 @@
-name: CI/CD Pipeline
+name: CI DevSecOps
 
 on:
   push:
     branches: ["dev"]
   pull_request:
     branches: ["main"]
+  workflow_dispatch:
 
 jobs:
-  build-test-scan:
+  build-scan-push:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: nodejs-postgres
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 #récupère tout l'historique git
+          fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          python-version: "3.11"
+          node-version: "20"
+          cache: npm
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: npm ci
 
       - name: Build Docker image
-        run: docker build -t devsecure-api .
+        run: docker build -t $IMAGE_NAME:${{ github.sha }} .
 
-      - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "devsecure-api"
-          format: "table"
-          exit-code: "1"
-          severity: "CRITICAL"
+      - name: Setup Trivy
+        uses: aquasecurity/setup-trivy@v0.2.2
 
-      - name: Run Snyk Scan
-        uses: snyk/actions/docker@master
-        continue-on-error: true
-        with:
-          image: devsecure-api:latest
-          args: --file=Dockerfile --json-file-output=snyk-report.json
+      - name: Trivy scan (JSON)
+        run: trivy image --no-progress --format json -o trivy-report.json $IMAGE_NAME:${{ github.sha }}
+
+      - name: Trivy scan (HTML)
+        run: |
+          wget -qO html.tpl https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/html.tpl
+          trivy image --no-progress --format template --template "@html.tpl" -o trivy-report.html $IMAGE_NAME:${{ github.sha }}
+
+      - name: Trivy security gate (CRITICAL)
+        run: trivy image --no-progress --severity CRITICAL --exit-code 1 $IMAGE_NAME:${{ github.sha }}
+
+      - name: Setup Snyk CLI
+        if: ${{ secrets.SNYK_TOKEN != '' }}
+        uses: snyk/actions/setup@master
+
+      - name: Snyk scan dependencies
+        if: ${{ secrets.SNYK_TOKEN != '' }}
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk test --all-projects --json-file-output=snyk-deps.json || true
 
-      - name: Install snyk-to-html
-        run: npm install -g snyk-to-html
+      - name: Snyk scan container
+        if: ${{ secrets.SNYK_TOKEN != '' }}
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: snyk container test $IMAGE_NAME:${{ github.sha }} --file=Dockerfile --json-file-output=snyk-container.json || true
 
-      - name: Generate HTML report
-        run: snyk-to-html -i snyk-report.json -o snyk-report.html
+      - name: Generate Snyk HTML report
+        if: ${{ secrets.SNYK_TOKEN != '' }}
+        run: |
+          npm install -g snyk-to-html
+          if [ -f snyk-container.json ]; then
+            snyk-to-html -i snyk-container.json -o snyk-report.html
+          elif [ -f snyk-deps.json ]; then
+            snyk-to-html -i snyk-deps.json -o snyk-report.html
+          fi
 
-      - name: Upload Snyk HTML report
-        uses: actions/upload-artifact@v4
-        with:
-          name: snyk-report
-          path: snyk-report.html
-
-      - name: Scan for secrets with Gitleaks
+      - name: Scan secrets with Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Upload scan artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            trivy-report.json
+            trivy-report.html
+            snyk-deps.json
+            snyk-container.json
+            snyk-report.html
+          if-no-files-found: ignore
+
       - name: Login to Docker Hub
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Push image to Docker Hub
+      - name: Push Docker image
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
         run: |
-          docker tag devsecure-api ${{ secrets.DOCKER_USERNAME }}/devsecure-api:latest
-          docker push ${{ secrets.DOCKER_USERNAME }}/devsecure-api:latest
+          docker tag $IMAGE_NAME:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:latest
+          docker tag $IMAGE_NAME:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:${{ github.sha }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:${{ github.sha }}
