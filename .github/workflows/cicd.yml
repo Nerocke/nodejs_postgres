@@ -15,11 +15,17 @@ jobs:
       SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     steps:
+      # --------------------------
+      # Checkout
+      # --------------------------
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # --------------------------
+      # Node.js setup
+      # --------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -29,9 +35,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # --------------------------
+      # Build Docker image
+      # --------------------------
       - name: Build Docker image
         run: docker build -t $IMAGE_NAME:${{ github.sha }} .
 
+      # --------------------------
+      # Trivy security scans
+      # --------------------------
       - name: Setup Trivy
         uses: aquasecurity/setup-trivy@v0.2.2
 
@@ -46,6 +58,9 @@ jobs:
       - name: Trivy security gate (CRITICAL)
         run: trivy image --no-progress --severity CRITICAL --exit-code 1 $IMAGE_NAME:${{ github.sha }}
 
+      # --------------------------
+      # Snyk scans (if token exists)
+      # --------------------------
       - name: Setup Snyk CLI
         if: ${{ env.SNYK_TOKEN != '' }}
         uses: snyk/actions/setup@master
@@ -72,11 +87,17 @@ jobs:
             snyk-to-html -i snyk-deps.json -o snyk-report.html
           fi
 
+      # --------------------------
+      # Scan secrets with Gitleaks
+      # --------------------------
       - name: Scan secrets with Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # --------------------------
+      # Upload scan artifacts
+      # --------------------------
       - name: Upload scan artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,15 +111,18 @@ jobs:
             snyk-report.html
           if-no-files-found: ignore
 
+      # --------------------------
+      # Docker login & push (dev branch only)
+      # --------------------------
       - name: Login to Docker Hub
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+        if: github.ref_name == 'dev'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push Docker image
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+        if: github.ref_name == 'dev'
         run: |
           docker tag $IMAGE_NAME:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:dev
           docker tag $IMAGE_NAME:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:${{ github.sha }}
