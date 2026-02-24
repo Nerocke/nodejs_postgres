@@ -3,7 +3,7 @@ name: CI Main Docker Release
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["CI DevSecOps"]
+    workflows: ["CIDevSecOps"]
     types: [completed]
 
 jobs:
