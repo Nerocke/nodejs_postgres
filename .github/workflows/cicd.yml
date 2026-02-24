@@ -4,7 +4,7 @@ on:
   push:
     branches: ["dev"]
   pull_request:
-    branches: ["main"]
+    branches: ["dev"]
   workflow_dispatch:
 
 jobs:
@@ -99,7 +99,7 @@ jobs:
       - name: Push Docker image
         if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
         run: |
-          docker tag $IMAGE_NAME:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:latest
+          docker tag $IMAGE_NAME:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:dev
           docker tag $IMAGE_NAME:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:${{ github.sha }}
-          docker push ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:dev
           docker push ${{ secrets.DOCKER_USERNAME }}/$IMAGE_NAME:${{ github.sha }}
