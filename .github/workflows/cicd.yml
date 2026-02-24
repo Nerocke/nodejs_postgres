@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: nodejs-postgres
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -46,23 +47,23 @@ jobs:
         run: trivy image --no-progress --severity CRITICAL --exit-code 1 $IMAGE_NAME:${{ github.sha }}
 
       - name: Setup Snyk CLI
-        if: ${{ secrets.SNYK_TOKEN != '' }}
+        if: ${{ env.SNYK_TOKEN != '' }}
         uses: snyk/actions/setup@master
 
       - name: Snyk scan dependencies
-        if: ${{ secrets.SNYK_TOKEN != '' }}
+        if: ${{ env.SNYK_TOKEN != '' }}
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
         run: snyk test --all-projects --json-file-output=snyk-deps.json || true
 
       - name: Snyk scan container
-        if: ${{ secrets.SNYK_TOKEN != '' }}
+        if: ${{ env.SNYK_TOKEN != '' }}
         env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          SNYK_TOKEN: ${{ env.SNYK_TOKEN }}
         run: snyk container test $IMAGE_NAME:${{ github.sha }} --file=Dockerfile --json-file-output=snyk-container.json || true
 
       - name: Generate Snyk HTML report
-        if: ${{ secrets.SNYK_TOKEN != '' }}
+        if: ${{ env.SNYK_TOKEN != '' }}
         run: |
           npm install -g snyk-to-html
           if [ -f snyk-container.json ]; then
