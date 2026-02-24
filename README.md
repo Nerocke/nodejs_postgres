@@ -6,7 +6,7 @@ Une API Node.js (Express + PostgreSQL) conçue avec une approche DevSecOps : sé
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)
 ![Security](https://img.shields.io/badge/Security-Trivy%20%7C%20Snyk%20%7C%20Gitleaks-success)
 
-## 🔧 Fonctionnalités
+## 🔧 Fonctionnalités 
 
 - ✅ API Node.js légère (Express)
 - 🐳 Dockerisation complète
