@@ -3,12 +3,13 @@ name: CI Main Docker Release
 on:
   workflow_dispatch:
   workflow_run:
-    workflows: ["CIDevSecOps"]
+    workflows: ["CI DevSecOps"]
+    branches: ["dev"]
     types: [completed]
 
 jobs:
   build-and-push:
-    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'dev') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: nodejs-postgres
