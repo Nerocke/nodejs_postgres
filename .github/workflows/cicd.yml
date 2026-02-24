@@ -2,16 +2,66 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches:
-      - main
+    branches: ["dev"]
+  pull_request:
+    branches: ["main"]
 
 jobs:
-  build-and-deploy:
+  build-test-scan:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 #récupère tout l'historique git
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build Docker image
+        run: docker build -t devsecure-api .
+
+      - name: Scan Docker image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "devsecure-api"
+          format: "table"
+          exit-code: "1"
+          severity: "CRITICAL"
+
+      - name: Run Snyk Scan
+        uses: snyk/actions/docker@master
+        continue-on-error: true
+        with:
+          image: devsecure-api:latest
+          args: --file=Dockerfile --json-file-output=snyk-report.json
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      - name: Install snyk-to-html
+        run: npm install -g snyk-to-html
+
+      - name: Generate HTML report
+        run: snyk-to-html -i snyk-report.json -o snyk-report.html
+
+      - name: Upload Snyk HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-report
+          path: snyk-report.html
+
+      - name: Scan for secrets with Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -19,36 +69,7 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and Push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ secrets.DOCKER_USERNAME }}/nerockenodejs:latest
-            ${{ secrets.DOCKER_USERNAME }}/nerockenodejs:${{ github.sha }}
-
-      - name: Copy files to Server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "docker-compose.yml,init-db.sql"
-          target: "~/app"
-
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd ~/app
-
-            export DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
-
-            docker pull ${{ secrets.DOCKER_USERNAME }}/nodejs_postgres:latest
-
-            docker compose -f docker-compose.yml down 
-            docker compose -f docker-compose.yml up -d 
+      - name: Push image to Docker Hub
+        run: |
+          docker tag devsecure-api ${{ secrets.DOCKER_USERNAME }}/devsecure-api:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/devsecure-api:latest
